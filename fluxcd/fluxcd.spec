@@ -1,14 +1,17 @@
 %global goipath      github.com/fluxcd/flux2/v2
 %global forgeurl     https://github.com/fluxcd/flux2
 %global tag          v%{version}
-# The GitHub archive unpacks to flux2-%%{version}, not flux-%%{version}.
+# The GitHub archive unpacks to flux2-%%{version}.
 %global archivedir   flux2-%{version}
+# The package is named fluxcd, but the binary it installs is "flux" — that is
+# what every upstream tutorial, script and manifest invokes.
+%global cliname      flux
 
 # %%gobuild defaults GO111MODULE to "off", which would ignore go.mod and the
 # vendored dependency tree entirely.
 %global gomodulesmode GO111MODULE=on
 
-Name:                flux
+Name:                fluxcd
 Version:             2.9.3
 Release:             1%{?dist}
 Summary:             Command line tool for Flux, the GitOps toolkit for Kubernetes
@@ -326,6 +329,13 @@ controllers themselves run in-cluster and are installed by "flux bootstrap" or
 # Fail loudly rather than silently attempting a network fetch mid-build.
 test -f vendor/modules.txt
 
+# The manifests tarball has no leading directory, so unpack it where the
+# go:embed directive in cmd/flux/manifests.embed.go expects to find it.
+mkdir -p cmd/%{cliname}/manifests
+tar -xf %{SOURCE2} -C cmd/%{cliname}/manifests
+# go:embed fails the build on an empty directory, so check the glob it uses.
+ls cmd/%{cliname}/manifests/*.yaml >/dev/null
+
 %build
 export GOPROXY=off
 export GOFLAGS="-mod=vendor"
@@ -333,34 +343,34 @@ export GOFLAGS="-mod=vendor"
 # bootstrap manifests both read. Upstream also passes "-s -w"; we deliberately
 # do not, so that the debuginfo subpackage is usable.
 export GO_LDFLAGS="-X main.VERSION=%{version}"
-%gobuild -o _bin/%{name} ./cmd/%{name}
+%gobuild -o _bin/%{cliname} ./cmd/%{cliname}
 
 for shell in bash zsh fish; do
-  ./_bin/%{name} completion $shell > %{name}.$shell
+  ./_bin/%{cliname} completion $shell > %{cliname}.$shell
 done
 
 %install
-install -Dpm 0755 _bin/%{name} %{buildroot}%{_bindir}/%{name}
+install -Dpm 0755 _bin/%{cliname} %{buildroot}%{_bindir}/%{cliname}
 
-install -Dpm 0644 %{name}.bash %{buildroot}%{bash_completions_dir}/%{name}
-install -Dpm 0644 %{name}.zsh  %{buildroot}%{zsh_completions_dir}/_%{name}
-install -Dpm 0644 %{name}.fish %{buildroot}%{fish_completions_dir}/%{name}.fish
+install -Dpm 0644 %{cliname}.bash %{buildroot}%{bash_completions_dir}/%{cliname}
+install -Dpm 0644 %{cliname}.zsh  %{buildroot}%{zsh_completions_dir}/_%{cliname}
+install -Dpm 0644 %{cliname}.fish %{buildroot}%{fish_completions_dir}/%{cliname}.fish
 
 %check
 # Upstream's unit tests are tagged "unit" and need envtest control-plane
 # binaries via KUBEBUILDER_ASSETS, which cannot be downloaded in a COPR builder;
 # the e2e suite needs a live cluster. Verify instead that the binary runs and
 # that the version stamp actually took effect.
-test "$(./_bin/%{name} --version)" = "%{name} version %{version}"
+test "$(./_bin/%{cliname} --version)" = "%{cliname} version %{version}"
 
 %files
 %license LICENSE
 %doc README.md CONTRIBUTING.md CODE_OF_CONDUCT.md MAINTAINERS
-%{_bindir}/%{name}
-%{bash_completions_dir}/%{name}
-%{zsh_completions_dir}/_%{name}
-%{fish_completions_dir}/%{name}.fish
+%{_bindir}/%{cliname}
+%{bash_completions_dir}/%{cliname}
+%{zsh_completions_dir}/_%{cliname}
+%{fish_completions_dir}/%{cliname}.fish
 
 %changelog
-* Mon Aug 03 2026 Anton Groshev <anton.groshev@aviata.me> - 2.9.3-1
+* Mon Aug 03 2026 Anton Groshev <anton@agrshv.dev> - 2.9.3-1
 - Initial package

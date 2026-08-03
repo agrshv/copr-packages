@@ -3,10 +3,13 @@
 RPM packaging for tools that are not in the Fedora repositories, built and
 published through [COPR](https://copr.fedorainfracloud.org/).
 
-| Package | Upstream | Version | COPR project | Status |
-| --- | --- | --- | --- | --- |
-| `ghorg` | [gabrie30/ghorg](https://github.com/gabrie30/ghorg) | 1.11.14 | `ghorg` | ready |
-| `flux` | [fluxcd/flux2](https://github.com/fluxcd/flux2) | 2.9.3 | `fluxcd` | work in progress |
+| Package | Binary | Upstream | Version | COPR project | Source method |
+| --- | --- | --- | --- | --- | --- |
+| `ghorg` | `ghorg` | [gabrie30/ghorg](https://github.com/gabrie30/ghorg) | 1.11.14 | `ghorg` | `rpkg` |
+| `fluxcd` | `flux` | [fluxcd/flux2](https://github.com/fluxcd/flux2) | 2.9.3 | `fluxcd` | `make_srpm` |
+
+The `fluxcd` package installs a binary called `flux`, because that is what every
+upstream tutorial, script and manifest invokes.
 
 Each tool gets its own COPR project so it can be enabled independently, but the
 packaging sources share one repository because the helper scripts are identical.
@@ -57,9 +60,13 @@ COPR builders run without network access, so Go modules cannot be downloaded
 during the build. There are two cases:
 
 - **ghorg** commits `vendor/` upstream and ships it in the release archive, so
-  the tarball is already self-contained. Nothing extra is needed.
-- **flux** does not, so `scripts/prepare-sources.sh` runs `go mod vendor`
-  locally and packs the result as `Source1`.
+  the tarball is already self-contained. Nothing extra is needed, and COPR can
+  build it with the default `rpkg` method, which just downloads `Source0`.
+- **fluxcd** does not, so its `Source1` is a vendored-deps tarball that has to be
+  *produced* rather than downloaded. That is why it uses the `make_srpm` method
+  and carries a [`.copr/Makefile`](fluxcd/.copr/Makefile): COPR's source phase is
+  the only part of the build with network access, so the vendoring happens there.
+  `scripts/prepare-sources.sh` is what runs, both locally and on COPR.
 
 Both specs set `GOPROXY=off` and `GOFLAGS=-mod=vendor`, and assert that
 `vendor/modules.txt` exists in `%prep`, so a build that would otherwise reach
@@ -92,6 +99,11 @@ markers in the spec and is rewritten in place.
 - Upstream release ldflags often include `-s -w`, which strips the symbol table
   and DWARF data. The specs deliberately omit those so the `-debuginfo`
   subpackage is usable.
+- `fluxcd` embeds the Flux controller manifests with `go:embed`. Upstream
+  generates them with `manifests/scripts/bundle.sh`, which runs `kustomize build`
+  over kustomizations whose resources are remote GitHub release URLs — so it
+  cannot run in an offline builder. The spec instead uses the `manifests.tar.gz`
+  release asset, which is the published output of that same script.
 - The `flux` binary name is also used by the unrelated Flux Framework HPC
   resource manager. Nothing in Fedora currently ships `/usr/bin/flux`, but
   enabling a third-party COPR that packages `flux-core` alongside this one would
