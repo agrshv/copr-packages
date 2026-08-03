@@ -17,6 +17,10 @@ URL:                %{forgeurl}
 Source0:            %{forgeurl}/archive/refs/tags/%{tag}/%{name}-%{version}.tar.gz
 
 BuildRequires:      golang >= 1.26
+# The golang package does not depend on go-rpm-macros, so without this
+# %%gobuild and %%gotest are passed through unexpanded and the build fails in a
+# clean buildroot even though it works on a developer machine.
+BuildRequires:      go-rpm-macros
 BuildRequires:      git-core
 
 # ghorg shells out to git for every clone and pull.

@@ -27,6 +27,10 @@ Source1:             %{name}-%{version}-vendor.tar.gz
 Source2:             %{forgeurl}/releases/download/%{tag}/manifests.tar.gz#/%{name}-%{version}-manifests.tar.gz
 
 BuildRequires:       golang >= 1.26
+# The golang package does not depend on go-rpm-macros, so without this
+# %%gobuild is passed through unexpanded and the build fails in a clean
+# buildroot even though it works on a developer machine.
+BuildRequires:       go-rpm-macros
 
 # Nothing is required at runtime: flux speaks to the Kubernetes API directly
 # rather than shelling out to kubectl.
