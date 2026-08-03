@@ -21,8 +21,10 @@ First-time COPR account, token and project setup: see
 
 ```
 ghorg/ghorg.spec      # spec files, one directory per package
-fluxcd/flux.spec
+fluxcd/fluxcd.spec
 scripts/              # shared helpers, all take a package directory as argument
+.copr/Makefile        # source-build recipe for make_srpm packages; COPR reads
+                      # this from the repo root, with cwd set to the package dir
 docs/copr-setup.md
 ```
 
@@ -64,7 +66,7 @@ during the build. There are two cases:
   build it with the default `rpkg` method, which just downloads `Source0`.
 - **fluxcd** does not, so its `Source1` is a vendored-deps tarball that has to be
   *produced* rather than downloaded. That is why it uses the `make_srpm` method
-  and carries a [`.copr/Makefile`](fluxcd/.copr/Makefile): COPR's source phase is
+  and carries a [`.copr/Makefile`](.copr/Makefile): COPR's source phase is
   the only part of the build with network access, so the vendoring happens there.
   `scripts/prepare-sources.sh` is what runs, both locally and on COPR.
 
